@@ -142,11 +142,12 @@ describe("User Router", () => {
 			});
 
 			const result = await caller.getAll({
-				page: 10,
-				per_page: 0,
+				page: 1,
+				per_page: 10,
 			});
 
-			expect(result).toHaveLength(2);
+			expect(result).toHaveProperty('data');
+			expect(result.data).toHaveLength(2);
 		});
 
 		it("should search users by name and email", async () => {
@@ -171,12 +172,13 @@ describe("User Router", () => {
 			});
 
 			const result = await caller.getAll({
-				page: 10,
-				per_page: 0,
+				page: 1,
+				per_page: 10,
 				search: "searchable",
 			});
 
-			expect(result).toHaveLength(1);
+			expect(result).toHaveProperty('data');
+			expect(result.data).toHaveLength(1);
 			expect(result.data[0].fullname).toBe("Searchable User");
 		});
 	});

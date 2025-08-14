@@ -9,7 +9,7 @@ const envSchema = z.object({
 		.string()
 		.transform((val) => parseInt(val, 10))
 		.pipe(z.number().min(1).max(65535))
-		.default("3000"),
+		.default(3000),
 	
 	DATABASE_URL: z
 		.string()
@@ -53,7 +53,7 @@ const envSchema = z.object({
 		.string()
 		.transform((val) => val === "true")
 		.pipe(z.boolean())
-		.default("true"),
+		.default(true),
 	
 	// Logging
 	LOG_LEVEL: z
@@ -72,8 +72,8 @@ export function validateEnv(): Env {
 	} catch (error) {
 		if (error instanceof z.ZodError) {
 			console.error("❌ Environment validation failed:");
-			error.errors.forEach((err) => {
-				console.error(`  - ${err.path.join(".")}: ${err.message}`);
+			error.issues.forEach((issue) => {
+				console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
 			});
 			process.exit(1);
 		}

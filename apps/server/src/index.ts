@@ -3,11 +3,20 @@ import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { serve } from "@hono/node-server";
 import { auth } from "./lib/auth";
 import { createContext } from "./lib/context";
 import { appRouter } from "./routers/index";
 import { errorHandler, notFoundHandler } from "./lib/middleware/error";
 import { requestLogging, requestValidation } from "./lib/middleware/request";
+
+// Extend Hono context to include user and session
+declare module "hono" {
+	interface ContextVariableMap {
+		user: any;
+		session: any;
+	}
+}
 
 const app = new Hono();
 
@@ -25,7 +34,15 @@ app.use(
 	}),
 );
 
-app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+// Better Auth routes - handle all auth endpoints
+app.all("/api/auth/*", async (c) => {
+	const response = await auth.handler(c.req.raw);
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: response.headers,
+	});
+});
 
 app.use(
 	"/trpc/*",
@@ -59,4 +76,11 @@ app.get("/api/moderator/reports", bearerAuth(), requireModerator(), (c) => {
 
 app.notFound(notFoundHandler);
 
+// Create HTTP server for testing
+const server = serve({
+	fetch: app.fetch,
+	port: 0, // Use random port for testing
+});
+
 export default app;
+export { server };

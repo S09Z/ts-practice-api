@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import app from "../../index";
+import { server } from "../../index";
 import { cleanupTestDb, setupTestDb } from "../helpers/db";
 
 describe("Auth Integration Tests", () => {
@@ -10,6 +10,8 @@ describe("Auth Integration Tests", () => {
 
 	afterAll(async () => {
 		await cleanupTestDb();
+		// Close server after tests
+		server.close();
 	});
 
 	describe("POST /api/auth/sign-up", () => {
@@ -20,7 +22,7 @@ describe("Auth Integration Tests", () => {
 				password: "password123",
 			};
 
-			const response = await request(app)
+			const response = await request(server)
 				.post("/api/auth/sign-up")
 				.send(userData)
 				.expect(200);
@@ -37,7 +39,7 @@ describe("Auth Integration Tests", () => {
 				password: "password123",
 			};
 
-			await request(app)
+			await request(server)
 				.post("/api/auth/sign-up")
 				.send(userData)
 				.expect(400);
@@ -50,7 +52,7 @@ describe("Auth Integration Tests", () => {
 				password: "123",
 			};
 
-			await request(app)
+			await request(server)
 				.post("/api/auth/sign-up")
 				.send(userData)
 				.expect(400);
@@ -66,12 +68,12 @@ describe("Auth Integration Tests", () => {
 				password: "password123",
 			};
 
-			await request(app)
+			await request(server)
 				.post("/api/auth/sign-up")
 				.send(userData);
 
 			// Then try to login
-			const response = await request(app)
+			const response = await request(server)
 				.post("/api/auth/sign-in")
 				.send({
 					email: userData.email,
@@ -85,7 +87,7 @@ describe("Auth Integration Tests", () => {
 		});
 
 		it("should reject login with invalid credentials", async () => {
-			await request(app)
+			await request(server)
 				.post("/api/auth/sign-in")
 				.send({
 					email: "nonexistent@example.com",
@@ -97,7 +99,7 @@ describe("Auth Integration Tests", () => {
 
 	describe("POST /api/auth/sign-out", () => {
 		it("should logout successfully", async () => {
-			const response = await request(app)
+			const response = await request(server)
 				.post("/api/auth/sign-out")
 				.expect(200);
 
@@ -113,7 +115,7 @@ describe("Auth Integration Tests", () => {
 				password: "password123",
 			};
 
-			const response = await request(app)
+			const response = await request(server)
 				.post("/trpc/auth.register")
 				.send({
 					json: userData,
@@ -131,14 +133,14 @@ describe("Auth Integration Tests", () => {
 				password: "password123",
 			};
 
-			await request(app)
+			await request(server)
 				.post("/trpc/auth.register")
 				.send({
 					json: userData,
 				});
 
 			// Then login
-			const response = await request(app)
+			const response = await request(server)
 				.post("/trpc/auth.login")
 				.send({
 					json: {
@@ -152,7 +154,7 @@ describe("Auth Integration Tests", () => {
 		});
 
 		it("should get session via tRPC", async () => {
-			const response = await request(app)
+			const response = await request(server)
 				.get("/trpc/auth.getSession")
 				.expect(200);
 

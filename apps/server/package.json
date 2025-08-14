@@ -20,6 +20,7 @@
 		"db:watch": "docker compose up",
 		"db:stop": "docker compose stop",
 		"db:down": "docker compose down",
+		"db:test": "bun run src/scripts/test-db.ts",
 		"lint": "biome check --write .",
 		"lint:check": "biome check ."
 	},

@@ -1,8 +1,4 @@
-import { TRPCError } from "@trpc/server";
-import { eq, ilike, or } from "drizzle-orm";
-import { db } from "../db";
-import { users } from "../db/schema/users";
-import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
+import { protectedProcedure, publicProcedure, router, adminProcedure, moderatorProcedure, roleProcedure } from "../lib/trpc";
 import {
 	createUserSchema,
 	deleteUserSchema,
@@ -10,186 +6,54 @@ import {
 	getUsersSchema,
 	updateUserSchema,
 } from "../lib/validators/user";
+import { UserService } from "../services/user.service";
 
 export const userRouter = router({
-	create: protectedProcedure
-		.input(createUserSchema)
-		.mutation(async ({ input }) => {
-			try {
-				const existingUser = await db
-					.select()
-					.from(users)
-					.where(eq(users.email, input.email))
-					.limit(1);
-
-				if (existingUser.length > 0) {
-					throw new TRPCError({
-						code: "CONFLICT",
-						message: "User with this email already exists",
-					});
-				}
-
-				const [newUser] = await db
-					.insert(users)
-					.values(input)
-					.returning();
-
-				return newUser;
-			} catch (error) {
-				if (error instanceof TRPCError) {
-					throw error;
-				}
-				throw new TRPCError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to create user",
-					cause: error,
-				});
-			}
-		}),
-
+	// Public: Anyone can view user details
 	getById: publicProcedure
 		.input(getUserSchema)
 		.query(async ({ input }) => {
-			try {
-				const [user] = await db
-					.select()
-					.from(users)
-					.where(eq(users.id, input.id))
-					.limit(1);
-
-				if (!user) {
-					throw new TRPCError({
-						code: "NOT_FOUND",
-						message: "User not found",
-					});
-				}
-
-				return user;
-			} catch (error) {
-				if (error instanceof TRPCError) {
-					throw error;
-				}
-				throw new TRPCError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to fetch user",
-					cause: error,
-				});
-			}
+			return await UserService.getUserById(input.id);
 		}),
 
-	getAll: publicProcedure
+	// Admin/Moderator: Can view all users with search
+	getAll: moderatorProcedure
 		.input(getUsersSchema)
 		.query(async ({ input }) => {
-			try {
-				const { limit, offset, search } = input;
-
-				let query = db.select().from(users);
-
-				if (search) {
-					query = query.where(
-						or(
-							ilike(users.fullname, `%${search}%`),
-							ilike(users.email, `%${search}%`)
-						)
-					);
-				}
-
-				const usersList = await query
-					.limit(limit)
-					.offset(offset)
-					.orderBy(users.createdAt);
-
-				return usersList;
-			} catch (error) {
-				throw new TRPCError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to fetch users",
-					cause: error,
-				});
-			}
+			return await UserService.getAllUsers(input);
 		}),
 
+	// Admin only: Can create new users
+	create: adminProcedure
+		.input(createUserSchema)
+		.mutation(async ({ input }) => {
+			return await UserService.createUser(input);
+		}),
+
+	// Authenticated: Users can update their own profile
+	// Admin/Moderator: Can update any user
 	update: protectedProcedure
 		.input(updateUserSchema)
-		.mutation(async ({ input }) => {
-			try {
-				const { id, ...updateData } = input;
-
-				// Check if user exists
-				const [existingUser] = await db
-					.select()
-					.from(users)
-					.where(eq(users.id, id))
-					.limit(1);
-
-				if (!existingUser) {
-					throw new TRPCError({
-						code: "NOT_FOUND",
-						message: "User not found",
-					});
-				}
-
-				// If email is being updated, check for conflicts
-				if (updateData.email && updateData.email !== existingUser.email) {
-					const [emailConflict] = await db
-						.select()
-						.from(users)
-						.where(eq(users.email, updateData.email))
-						.limit(1);
-
-					if (emailConflict) {
-						throw new TRPCError({
-							code: "CONFLICT",
-							message: "Email already in use by another user",
-						});
-					}
-				}
-
-				const [updatedUser] = await db
-					.update(users)
-					.set(updateData)
-					.where(eq(users.id, id))
-					.returning();
-
-				return updatedUser;
-			} catch (error) {
-				if (error instanceof TRPCError) {
-					throw error;
-				}
-				throw new TRPCError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update user",
-					cause: error,
-				});
+		.mutation(async ({ input, ctx }) => {
+			// Allow users to update their own profile, or admin/moderator to update any
+			if (ctx.user.id !== input.id && !["admin", "moderator"].includes(ctx.user.role)) {
+				throw new Error("You can only update your own profile");
 			}
+			return await UserService.updateUser(input);
 		}),
 
-	delete: protectedProcedure
+	// Admin only: Can delete users
+	delete: adminProcedure
 		.input(deleteUserSchema)
 		.mutation(async ({ input }) => {
-			try {
-				const [deletedUser] = await db
-					.delete(users)
-					.where(eq(users.id, input.id))
-					.returning();
+			return await UserService.deleteUser(input.id);
+		}),
 
-				if (!deletedUser) {
-					throw new TRPCError({
-						code: "NOT_FOUND",
-						message: "User not found",
-					});
-				}
-
-				return { success: true, deletedUser };
-			} catch (error) {
-				if (error instanceof TRPCError) {
-					throw error;
-				}
-				throw new TRPCError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to delete user",
-					cause: error,
-				});
-			}
+	// Example: Custom role-based endpoint
+	promoteUser: roleProcedure(["admin"])
+		.input(getUserSchema)
+		.mutation(async ({ input }) => {
+			// Custom logic for promoting users
+			return { message: `User ${input.id} promoted successfully` };
 		}),
 });

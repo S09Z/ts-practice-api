@@ -41,6 +41,22 @@ app.get("/", (c) => {
 	return c.text("OK");
 });
 
+// Example protected HTTP routes using Bearer token auth
+import { bearerAuth, requireAdmin, requireModerator } from "./lib/middleware/bearer-auth";
+
+app.get("/api/profile", bearerAuth(), (c) => {
+	const user = c.get("user") as any;
+	return c.json({ message: "Profile data", user });
+});
+
+app.get("/api/admin/dashboard", bearerAuth(), requireAdmin(), (c) => {
+	return c.json({ message: "Admin dashboard data" });
+});
+
+app.get("/api/moderator/reports", bearerAuth(), requireModerator(), (c) => {
+	return c.json({ message: "Moderator reports" });
+});
+
 app.notFound(notFoundHandler);
 
 export default app;

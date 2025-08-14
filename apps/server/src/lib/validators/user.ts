@@ -22,8 +22,8 @@ export const deleteUserSchema = z.object({
 });
 
 export const getUsersSchema = z.object({
-	limit: z.number().int().min(1).max(100).default(10),
-	offset: z.number().int().min(0).default(0),
+	page: z.number().int().min(1).default(1),
+	per_page: z.number().int().min(1).max(100).default(10),
 	search: z.string().optional(),
 });
 

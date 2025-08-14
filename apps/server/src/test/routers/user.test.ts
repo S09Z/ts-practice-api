@@ -142,8 +142,8 @@ describe("User Router", () => {
 			});
 
 			const result = await caller.getAll({
-				limit: 10,
-				offset: 0,
+				page: 10,
+				per_page: 0,
 			});
 
 			expect(result).toHaveLength(2);
@@ -171,13 +171,13 @@ describe("User Router", () => {
 			});
 
 			const result = await caller.getAll({
-				limit: 10,
-				offset: 0,
+				page: 10,
+				per_page: 0,
 				search: "searchable",
 			});
 
 			expect(result).toHaveLength(1);
-			expect(result[0].fullname).toBe("Searchable User");
+			expect(result.data[0].fullname).toBe("Searchable User");
 		});
 	});
 

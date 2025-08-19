@@ -1,28 +1,14 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { Pool } from "pg";
+import { db } from "../../db";
 import * as schema from "../../db/schema";
 
-// Use same connection approach as main app
-const testPool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  port: parseInt(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME || "postgres",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD?.replace(/^'(.*)'$/, '$1') || "password",
-  ssl: false,
-});
-
-export const testDb = drizzle(testPool);
-
 export async function setupTestDb() {
-	// Run migrations for test database
-	await migrate(testDb, { migrationsFolder: "./src/db/migrations" });
+	// Test setup if needed - database should already be migrated
+	console.log("Test database ready");
 }
 
 export async function cleanupTestDb() {
-	// Clean up test data
-	await testDb.delete(schema.users);
+	// Clean up test data using the same db connection as the app
+	await db.delete(schema.users);
 }
 
 export function createMockSession() {

@@ -23,11 +23,8 @@ export async function requireAuth(ctx: Context): Promise<AuthenticatedContext> {
 		});
 	}
 
-	// Get full user info including role
-	const user = await auth.api.getUser({
-		headers: new Headers(), // We already have session, so we can get user
-		body: JSON.stringify({ userId: ctx.session.userId }),
-	});
+	// Session already contains user info from better-auth
+	const { user } = ctx.session;
 
 	if (!user) {
 		throw new TRPCError({
@@ -43,7 +40,7 @@ export async function requireAuth(ctx: Context): Promise<AuthenticatedContext> {
 			id: user.id,
 			email: user.email,
 			name: user.name,
-			role: (user.role as UserRole) || "user",
+			role: ((user as any).role as UserRole) || "user",
 			emailVerified: user.emailVerified,
 		},
 	};
@@ -91,34 +88,21 @@ export async function verifyBearerToken(authHeader?: string): Promise<Authentica
 			}),
 		});
 
-		if (!session) {
+		if (!session || !session.user) {
 			throw new TRPCError({
 				code: "UNAUTHORIZED",
 				message: "Invalid or expired token",
 			});
 		}
 
-		// Get user info
-		const user = await auth.api.getUser({
-			headers: new Headers(),
-			body: JSON.stringify({ userId: session.userId }),
-		});
-
-		if (!user) {
-			throw new TRPCError({
-				code: "UNAUTHORIZED",
-				message: "User not found",
-			});
-		}
-
 		return {
 			session,
 			user: {
-				id: user.id,
-				email: user.email,
-				name: user.name,
-				role: (user.role as UserRole) || "user",
-				emailVerified: user.emailVerified,
+				id: session.user.id,
+				email: session.user.email,
+				name: session.user.name,
+				role: ((session.user as any).role as UserRole) || "user",
+				emailVerified: session.user.emailVerified,
 			},
 		};
 	} catch (error) {
